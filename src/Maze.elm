@@ -16,25 +16,40 @@ import Html.Lazy exposing (lazy)
 
 -- Model
 
+type Algorithm 
+  = Prim
+
+algorithmToString : Algorithm -> String
+algorithmToString algorithm =
+  case algorithm of
+    Prim -> "prim"
+
+stringToAlgorithm : String -> Algorithm
+stringToAlgorithm str =
+  case str of
+    "prim" -> Prim
+    _ -> Prim --default
+
 type alias Model =
     { maze : Maze
     , runGenerator : Bool
     , tickInterval : Int
     , seed : Int
+    , algorithm : Algorithm
     }
 
-newModel : Maybe Width -> Maybe Height -> Maybe Int -> Model
-newModel width height seed = 
+newModel : Maybe Width -> Maybe Height -> Maybe Int -> Maybe Algorithm -> Model
+newModel width height seed algorithm = 
   let
       w = withDefault widthDefault width 
       h = withDefault heightDefault height 
       s = withDefault 0 seed
+      a = withDefault (stringToAlgorithm "") algorithm
   in
-  
-  Model (newMaze w h s) False tickIntervalDefault s
+  Model (newMaze w h s) False tickIntervalDefault s a
 
 defaultModel : Model
-defaultModel = newModel Nothing Nothing Nothing
+defaultModel = newModel Nothing Nothing Nothing Nothing
 
 type alias Cell =
   { bUp: Bool
@@ -181,6 +196,7 @@ type Msg
     | HeightUpdate String
     | WidthUpdate String
     | SeedUpdate String
+    | AlgorithmUpdate String
 
 maxTickInterval : Int
 maxTickInterval = 100
@@ -251,6 +267,12 @@ update msg model =
             in
             { model | maze = newMaze maze.width maze.height newSeed, seed = newSeed, runGenerator = False }
 
+        AlgorithmUpdate algorithmUpdate ->
+            let 
+              newAlgorithm = stringToAlgorithm algorithmUpdate
+              maze = model.maze
+            in
+            { model | maze = newMaze maze.width maze.height model.seed, algorithm = newAlgorithm, runGenerator = False }
 
 -- SUBSCRIPTIONS
 
@@ -287,48 +309,34 @@ view model =
   }
 
 
-columnCentered : List (Attribute msg)
-columnCentered = [ style "display" "flex"
-    , style "justify-content" "center"
-    , style "align-items" "center"
+viewInputs : Int -> Int -> Width -> Height -> Html Msg
+viewInputs seed tickInterval width height = 
+  div [ style "display" "flex"
+    , style "align-items" "start"
     , style "padding" "10px 0"
     , style "flex-direction" "column"
-    ] 
+    ]  
+    [ div []
+      [ label [ Attrs.for "algorithm-input", style "padding-right" "10px"] [ text "Algorithm" ]
+      , select [ Attrs.id "algorithm-input", onInput SeedUpdate] 
+          [ option [ Attrs.selected True, Attrs.value (algorithmToString Prim) ] [ text "Prims' Algorithm" ]
 
-viewInputs : Int -> Int -> Width -> Height -> Html Msg
-viewInputs seed tickInterval width height = div columnCentered 
-    [ viewTextInput SeedUpdate (String.fromInt seed) "Seed"
+          ]
+      ]
+    , div []
+      [ label [ Attrs.for "seed-input", style "padding-right" "10px"] [ text "Seed" ]
+      , input [ Attrs.id "seed-input", value (String.fromInt seed), onInput SeedUpdate] []
+      ]
     , viewSlider TickSpeedUpdate "Tick speed" minTickInterval maxTickInterval tickInterval
     , viewSlider HeightUpdate "Height" minSize maxSize height
     , viewSlider WidthUpdate "Width" minSize maxSize width
-    , viewButtons
+    , div [ style "display" "flex" , style "margin-top" "10px"] 
+        [ viewButton "Step" Step
+        , viewButton "Run" Run
+        , viewButton "Reset" Reset
+        ]
     ]
 
-viewTextInput : (String -> msg) -> String -> String -> Html msg
-viewTextInput msgUpdate default txt = 
-  div [] 
-    [ label 
-        [ Attrs.for txt
-        , style "padding-right" "10px"
-        ] 
-        [ text txt ]
-    , input 
-        [ Attrs.id txt
-        , value default
-        , onInput msgUpdate
-        ] [ ]
-    ]
-
-
-viewButtons : Html Msg
-viewButtons = div 
-  [ style "display" "flex" 
-  , style "margin-top" "10px"
-  ] 
-  [ viewButton "Step" Step
-  , viewButton "Run" Run
-  , viewButton "Reset" Reset
-  ]
 
 viewSlider : (String -> Msg) -> String -> Int -> Int -> Int -> Html Msg
 viewSlider msgUpdate txt min max default = 
