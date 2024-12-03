@@ -8,7 +8,7 @@ import Html.Lazy exposing (lazy)
 import Maybe exposing (withDefault)
 import Maze.Prim as Prim exposing (buildMazeStep)
 import Maze.Kruskal exposing (buildMazeStep)
-import Maze.Utils exposing (Algorithm(..), AlgorithmExtra(..), Height, Maze, MazeCommon, Width, createMaze, mazeFinished)
+import Maze.Utils exposing (Algorithm(..), AlgorithmExtra(..), Height, Maze, MazeCommon, Width, createMaze, mazeFinished, algorithmToString, stringToAlgorithm)
 import Time
 import Unwrap
 import Maze.Kruskal as Kruskal
@@ -16,32 +16,6 @@ import Maze.Kruskal as Kruskal
 
 
 -- Model
-
-
-algorithmToString : Algorithm -> String
-algorithmToString algorithm =
-    case algorithm of
-        Prim ->
-            "prim"
-        Kruskal ->
-            "kruskal"
-
-
-stringToAlgorithm : String -> Algorithm
-stringToAlgorithm str =
-    case str of
-        "prim" ->
-            Prim
-
-        "kruskal" ->
-            Kruskal
-
-        _ ->
-            Prim
-
-
-
---default
 
 
 type alias Model =

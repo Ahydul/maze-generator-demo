@@ -1,4 +1,4 @@
-module Maze.Utils exposing (Algorithm(..), AlgorithmExtra(..), Direction(..), Height, Index, Edge, Maze, MazeCommon, Width, createMaze, initExtraData, deleteEdge, getRandomIndex, getRandomValue, mazeFinished, moveIndexDown, moveIndexLeft, moveIndexRight, moveIndexUp)
+module Maze.Utils exposing (Algorithm(..), AlgorithmExtra(..), Direction(..), Height, Index, Edge, Maze, MazeCommon, Width, createMaze, initExtraData, deleteEdge, getRandomIndex, getRandomValue, mazeFinished, moveIndexDown, moveIndexLeft, moveIndexRight, moveIndexUp, algorithmToString, stringToAlgorithm)
 
 import Array exposing (Array)
 import Random
@@ -48,6 +48,29 @@ type AlgorithmExtra
 type Algorithm
     = Prim
     | Kruskal
+
+
+algorithmToString : Algorithm -> String
+algorithmToString algorithm =
+    case algorithm of
+        Prim ->
+            "prim"
+        Kruskal ->
+            "kruskal"
+
+
+stringToAlgorithm : String -> Algorithm
+stringToAlgorithm str =
+    case str of
+        "prim" ->
+            Prim
+
+        "kruskal" ->
+            Kruskal
+
+        _ ->
+            Prim
+
 
 
 type alias MazeCommon =
