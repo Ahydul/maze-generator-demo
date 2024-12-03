@@ -62,7 +62,7 @@ viewFooter =
             [ span [ ]
                 [ text "A maze generator demo made by "
                 , a [ href "https://github.com/Ahydul/maze-generator-demo" ] [ text "Ahydul" ]
-                , text ". Code licensed under Apache License."
+                , text ". Code licensed under Apache License 2.0"
                 ]
             ]
         ]
