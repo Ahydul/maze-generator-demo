@@ -117,6 +117,9 @@ update msg model =
             { model | maze = buildMazeStep model.maze, runGenerator = False }
 
         Tick _ ->
+            if mazeFinished model.maze.common then
+                { model | runGenerator = False }
+            else
             let
                 skip = floor (1 / toFloat model.tickInterval) * 50
             in
