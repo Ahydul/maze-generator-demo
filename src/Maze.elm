@@ -1,9 +1,9 @@
-module Maze exposing (Maze, defaultModel, Msg, view, Model, update, subscriptions)
+module Maze exposing (defaultModel, Msg, view, Model, update, subscriptions)
 
-import Array exposing (Array)
-import Random
+import Array
 import Unwrap
-import Maze.Utils exposing (..)
+import Maze.Utils exposing (Maze, Width, Height, AlgorithmExtra(..), createMaze, mazeFinished)
+import Maze.Prim exposing (buildMazeStep)
 import Html exposing (..)
 import Html.Attributes as Attrs exposing (style, value, type_)
 import Html.Events exposing (onClick, onInput)
@@ -12,7 +12,8 @@ import Time
 import Maybe exposing (withDefault)
 import Html.Attributes exposing (width)
 import Html.Lazy exposing (lazy)
-
+import Maze.Prim as Prim
+import Maze.Utils exposing (MazeCommon)
 
 -- Model
 
@@ -38,147 +39,40 @@ type alias Model =
     , algorithm : Algorithm
     }
 
-newModel : Maybe Width -> Maybe Height -> Maybe Int -> Maybe Algorithm -> Model
-newModel width height seed algorithm = 
-  let
-      w = withDefault widthDefault width 
-      h = withDefault heightDefault height 
-      s = withDefault 0 seed
-      a = withDefault (stringToAlgorithm "") algorithm
-  in
-  Model (newMaze w h s) False tickIntervalDefault s a
 
 defaultModel : Model
-defaultModel = newModel Nothing Nothing Nothing Nothing
-
-type alias Cell =
-  { bUp: Bool
-  , bDown: Bool
-  , bLeft:  Bool
-  , bRight:  Bool
-  }
-
-emptyCell : Cell
-emptyCell = Cell True True True True
-
-
-type alias Grid = Array Cell
-
-type alias Maze =
-  { width : Width
-  , height : Height
-  , seed : Random.Seed
-  , grid : Grid
-  , visitedIndexes : List Index
-  , frontier : List Index
-  }
-
-newMaze : Width -> Height -> Int -> Maze
-newMaze width height seed = 
+defaultModel = 
   let
-    w = abs width
-    h = abs height
-    size = w*h
-    tmpSeed = Random.initialSeed seed
-    (index, newSeed) = getRandomIndex size tmpSeed
-    visitedIndexes = List.singleton index
-    grid = Array.repeat (size) emptyCell
-    frontier = getFrontier visitedIndexes [] index w h
+      seed = 0
+      extra = PrimExtra { frontier = [] }
+      maze = createMaze widthDefault heightDefault seed extra
   in
-    Maze w h newSeed grid visitedIndexes frontier
+  Model maze False tickIntervalDefault seed Prim
 
 
 
 -- Logic
 
 
-nothingIfListContains : Maybe a -> List a -> Maybe a
-nothingIfListContains value list =
-  Maybe.andThen (\num ->  if (List.member num list) then Nothing else Just num) value
-
-getFrontier : List Int -> List Int -> Index -> Width -> Height -> List Int
-getFrontier prevFrontier visitedIndexes index width height = 
-  let
-    tmpList = List.append visitedIndexes prevFrontier
-    indexUp = moveIndexUp index width
-      |> \num -> nothingIfListContains num tmpList
-    indexDown = moveIndexDown index width height
-      |> \num -> nothingIfListContains num tmpList
-    indexRight = moveIndexRight index width height
-      |> \num -> nothingIfListContains num tmpList
-    indexLeft = moveIndexLeft index width
-      |> \num -> nothingIfListContains num tmpList
-
-    frontier = [indexUp, indexDown, indexRight, indexLeft]
-      |> List.filterMap identity
-
-  in 
-    prevFrontier 
-      |> List.filter (\x -> x /= index)
-      |> List.append frontier
-      
-
-deleteEdge : Index -> Index -> Direction -> Grid -> Grid
-deleteEdge index1 index2 direction grid =
-  let
-    cell1 = grid |> Array.get index1 |> Unwrap.maybe
-    cell2 = grid |> Array.get index2 |> Unwrap.maybe
-    newGrid = case direction of
-      UP -> grid 
-        |> Array.set index1 { cell1 | bUp = False } 
-        |> Array.set index2 { cell2 | bDown = False }
-      DOWN -> grid 
-        |> Array.set index1 { cell1 | bDown = False } 
-        |> Array.set index2 { cell2 | bUp = False }
-      LEFT -> grid 
-        |> Array.set index1 { cell1 | bLeft = False } 
-        |> Array.set index2 { cell2 | bRight = False }
-      RIGHT -> grid 
-        |> Array.set index1 { cell1 | bRight = False } 
-        |> Array.set index2 { cell2 | bLeft = False }
-  in
-    newGrid
-  
-
-type Direction = UP | DOWN | LEFT | RIGHT
-
-
 
 buildMazeStep : Maze -> Maze
 buildMazeStep maze = 
-  if ( List.isEmpty maze.frontier ) then
+  if ( mazeFinished maze.common ) then
     maze
   else 
-  let
-    (index1, newSeed) = getRandomValue maze.frontier maze.seed
-    newVisitedIndexes = index1 :: maze.visitedIndexes 
-    
-    adyacentIndexes = 
-      [ moveIndexUp index1 maze.width |> Maybe.andThen (\val -> Just (val, UP))
-      , moveIndexDown index1 maze.width maze.height |>  Maybe.andThen (\val -> Just (val, DOWN))
-      , moveIndexRight index1 maze.width maze.height |>  Maybe.andThen (\val -> Just (val, RIGHT))
-      , moveIndexLeft index1 maze.width |>  Maybe.andThen (\val -> Just (val, LEFT))
-      ]
-      |> List.filterMap identity
-      |> List.filter (\(i,_) -> List.member i newVisitedIndexes)
-
-    ((index2, direction), newSeed2) = getRandomValue adyacentIndexes newSeed
-
-    newGrid = deleteEdge index1 index2 direction maze.grid
-    newFrontier = getFrontier maze.frontier maze.visitedIndexes index1 maze.width maze.height    
-  in
-    { maze | seed = newSeed2
-    , visitedIndexes = newVisitedIndexes
-    , frontier = newFrontier
-    , grid = newGrid
-    }
-
+  case maze.extra of
+    PrimExtra extra -> Prim.buildMazeStep maze.common extra
+      
 
 buildMazeStepSkipping : Maze -> Int -> Maze
 buildMazeStepSkipping maze skip =
     List.foldl (\_ acc -> buildMazeStep acc) maze (List.repeat (skip + 1) ())
 
+
+
 -- Update
+
+
 
 widthDefault : Int
 widthDefault = 5
@@ -213,8 +107,10 @@ update msg model =
         Reset ->
             let
                 maze = model.maze
+                common = maze.common
+                newMaze = createMaze common.width common.height model.seed maze.extra 
             in
-            { model | maze = newMaze maze.width maze.height model.seed, runGenerator = False }
+            { model | maze = newMaze, runGenerator = False }
         
         Step -> 
             { model | maze = buildMazeStep model.maze, runGenerator = False } 
@@ -246,8 +142,9 @@ update msg model =
                 |> withDefault heightDefault
                 |> min maxSize
                 |> max minSize
+              newMaze = createMaze model.maze.common.width newHeight model.seed model.maze.extra
             in
-            { model | maze = newMaze model.maze.width newHeight model.seed, runGenerator = False }
+            { model | maze = newMaze, runGenerator = False }
 
         WidthUpdate widthUpdate ->
             let
@@ -257,29 +154,32 @@ update msg model =
                 |> withDefault widthDefault
                 |> min maxSize
                 |> max minSize
+              newMaze = createMaze newWidth model.maze.common.height model.seed model.maze.extra
             in
-            { model | maze = newMaze newWidth model.maze.height model.seed, runGenerator = False }
+            { model | maze = newMaze, runGenerator = False }
         
         SeedUpdate seedUpdate ->
             let 
               newSeed = seedUpdate |> String.toInt |> withDefault 0
-              maze = model.maze
+              common = model.maze.common
+              newMaze = createMaze common.width common.height newSeed model.maze.extra
             in
-            { model | maze = newMaze maze.width maze.height newSeed, seed = newSeed, runGenerator = False }
+            { model | maze = newMaze, seed = newSeed, runGenerator = False }
 
         AlgorithmUpdate algorithmUpdate ->
             let 
               newAlgorithm = stringToAlgorithm algorithmUpdate
-              maze = model.maze
+              common = model.maze.common
+              newMaze = createMaze common.width common.height model.seed model.maze.extra
             in
-            { model | maze = newMaze maze.width maze.height model.seed, algorithm = newAlgorithm, runGenerator = False }
+            { model | maze = newMaze, algorithm = newAlgorithm, runGenerator = False }
 
 -- SUBSCRIPTIONS
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-   if ( model.runGenerator && not (List.isEmpty model.maze.frontier) ) then
+   if ( model.runGenerator && not (mazeFinished model.maze.common) ) then
       Time.every (toFloat model.tickInterval) Tick
    else
       Sub.none
@@ -303,7 +203,7 @@ view model =
       , style "width" "80vw"
       , style "height" "100%"
       ]
-      [ viewInputs model.seed model.tickInterval maze.width maze.height
+      [ viewInputs model.seed model.tickInterval maze.common.width maze.common.height
       , viewMaze maze
       ]
   }
@@ -383,12 +283,12 @@ viewMaze : Maze -> Html Msg
 viewMaze maze =
     let
         divs : List (Html msg)
-        divs = emptyList (maze.height - 1) |> List.concatMap (\row -> viewRow row maze ) 
+        divs = emptyList (maze.common.height - 1) |> List.concatMap (\row -> viewRow row maze ) 
     in
     div 
     [ style "display" "grid"
-    , style "grid-template-rows" ("repeat("++ String.fromInt maze.height ++" , 1fr)")
-    , style "grid-template-columns" ("repeat("++ String.fromInt maze.width ++" , 1fr)")
+    , style "grid-template-rows" ("repeat("++ String.fromInt maze.common.height ++" , 1fr)")
+    , style "grid-template-columns" ("repeat("++ String.fromInt maze.common.width ++" , 1fr)")
     , style "width" "100%"
     , style "height" "100%"
     , style "box-sizing" "border-box"
@@ -400,26 +300,27 @@ viewRow : Int -> Maze -> List (Html msg)
 viewRow row maze =
     let
         divs : List (Html msg)
-        divs = List.map (\col -> viewCell (row*maze.width  + col) maze) (emptyList (maze.width - 1))
+        divs = List.map (\col -> viewCell (row*maze.common.width  + col) maze) (emptyList (maze.common.width - 1))
     in
     divs
 
 backgroundColor : String
 backgroundColor = "rgb(251, 243, 231)"
 
-cellColor : Int -> List Int -> List Int -> String
-cellColor index cells frontier = 
-  if (List.member index cells) 
+cellColor : Int -> Maze -> String
+cellColor index maze = 
+  if (List.member index maze.common.visitedIndexes) 
     then backgroundColor
-  else if (List.member index frontier) 
-    then "#ffff7e"
-  else "gray"
+  else 
+    case maze.extra of
+      PrimExtra extra -> if (List.member index extra.frontier) then "#ffff7e" else "gray"
+      --_ -> "gray"
 
 
 borderStyle : Bool -> String
 borderStyle bool = 
   if bool then "1px solid black" else ("1px solid " ++ backgroundColor)
-addBorderStyle : Int -> Maze -> List (Attribute msg)
+addBorderStyle : Int -> MazeCommon -> List (Attribute msg)
 addBorderStyle index maze =
   let
     cell = Array.get index maze.grid |> Unwrap.maybe
@@ -435,8 +336,8 @@ viewCell index maze =
   lazy (div (List.append 
     [ Attrs.id ("cell-" ++ String.fromInt index)
     , style "padding" "0"
-    , style "background-color" (cellColor index maze.visitedIndexes maze.frontier)
-    ]  (addBorderStyle index maze)))
+    , style "background-color" (cellColor index maze)
+    ]  (addBorderStyle index maze.common)))
 
   --[ text (String.fromInt index) ] -- For debug
   [ ]
