@@ -8,7 +8,7 @@ import Html.Lazy exposing (lazy)
 import Maybe exposing (withDefault)
 import Maze.Prim as Prim exposing (buildMazeStep)
 import Maze.Kruskal exposing (buildMazeStep)
-import Maze.Utils exposing (Algorithm(..), AlgorithmExtra(..), Height, Maze, MazeCommon, Width, initExtraData, createMaze, mazeFinished)
+import Maze.Utils exposing (Algorithm(..), AlgorithmExtra(..), Height, Maze, MazeCommon, Width, createMaze, mazeFinished)
 import Time
 import Unwrap
 import Maze.Kruskal as Kruskal
