@@ -1,9 +1,8 @@
-module Maze.Utils exposing (AlgorithmExtra(..), Direction(..), Height, Index, Maze, MazeCommon, Width, createMaze, deleteEdge, getRandomIndex, getRandomValue, mazeFinished, moveIndexDown, moveIndexLeft, moveIndexRight, moveIndexUp)
+module Maze.Utils exposing (Algorithm(..), AlgorithmExtra(..), Direction(..), Height, Index, Edge, Maze, MazeCommon, Width, createMaze, initExtraData, deleteEdge, getRandomIndex, getRandomValue, mazeFinished, moveIndexDown, moveIndexLeft, moveIndexRight, moveIndexUp)
 
 import Array exposing (Array)
 import Random
 import Unwrap
-
 
 
 -- Model
@@ -36,9 +35,19 @@ emptyCell = Cell True True True True
 
 type alias Grid = Array Cell
 
+type alias Edge = (Index, Index, Direction) 
 
 type AlgorithmExtra
     = PrimExtra { frontier : List Index }
+    | KruskalExtra 
+        { ids : Array Int
+        , edges : List Edge
+        }
+
+
+type Algorithm
+    = Prim
+    | Kruskal
 
 
 type alias MazeCommon =
@@ -56,8 +65,32 @@ type alias Maze =
     }
 
 
-createMaze : Width -> Height -> Int -> AlgorithmExtra -> Maze
-createMaze width height seed extra =
+initVerticalEdges : Width -> Height -> List Edge
+initVerticalEdges width height =
+    List.concat (List.range 0 (height - 1)
+      |> List.map (\row -> List.range 0 (width - 2)
+            |> List.map (\i -> (i+(row*width), i+(row*width)+1, RIGHT))
+            ))
+
+initHorizontalEdges : Width -> Height -> List Edge
+initHorizontalEdges width height =
+    List.range 0 ((width * height) - width - 1)
+      |> List.map (\i -> (i, i+width, DOWN))
+
+
+initExtraData : Algorithm -> Width -> Height -> AlgorithmExtra
+initExtraData algorithm width height =
+    case algorithm of
+        Prim -> PrimExtra { frontier = [] }
+
+        Kruskal -> 
+          KruskalExtra 
+            { ids = Array.fromList (List.range 1 (width*height))
+            , edges = List.append (initVerticalEdges width height) (initHorizontalEdges width height)
+            }
+
+createMaze : Width -> Height -> Int -> Algorithm -> Maze
+createMaze width height seed algorithm =
     let
         w = abs width
         h =  abs height
@@ -66,6 +99,7 @@ createMaze width height seed extra =
         visitedIndexes = []
         grid =  Array.repeat size emptyCell
         common = MazeCommon w h newSeed grid visitedIndexes
+        extra = initExtraData algorithm w h
     in
     Maze common extra
 

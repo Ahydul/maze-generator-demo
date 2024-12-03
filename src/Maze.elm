@@ -7,17 +7,15 @@ import Html.Events exposing (onClick, onInput)
 import Html.Lazy exposing (lazy)
 import Maybe exposing (withDefault)
 import Maze.Prim as Prim exposing (buildMazeStep)
-import Maze.Utils exposing (AlgorithmExtra(..), Height, Maze, MazeCommon, Width, createMaze, mazeFinished)
+import Maze.Kruskal exposing (buildMazeStep)
+import Maze.Utils exposing (Algorithm(..), AlgorithmExtra(..), Height, Maze, MazeCommon, Width, initExtraData, createMaze, mazeFinished)
 import Time
 import Unwrap
+import Maze.Kruskal as Kruskal
 
 
 
 -- Model
-
-
-type Algorithm
-    = Prim
 
 
 algorithmToString : Algorithm -> String
@@ -25,6 +23,8 @@ algorithmToString algorithm =
     case algorithm of
         Prim ->
             "prim"
+        Kruskal ->
+            "kruskal"
 
 
 stringToAlgorithm : String -> Algorithm
@@ -32,6 +32,9 @@ stringToAlgorithm str =
     case str of
         "prim" ->
             Prim
+
+        "kruskal" ->
+            Kruskal
 
         _ ->
             Prim
@@ -66,8 +69,7 @@ defaultModel : Model
 defaultModel =
     let
         seed = 0
-        extra = PrimExtra { frontier = [] }
-        maze = createMaze widthDefault heightDefault seed extra
+        maze = createMaze widthDefault heightDefault seed Prim
     in
     Model maze False tickIntervalDefault seed Prim
 
@@ -85,6 +87,8 @@ buildMazeStep maze =
         case maze.extra of
             PrimExtra extra ->
                 Prim.buildMazeStep maze.common extra
+            KruskalExtra extra ->
+                Kruskal.buildMazeStep maze.common extra
 
 
 buildMazeStepSkipping : Maze -> Int -> Maze
@@ -131,7 +135,7 @@ update msg model =
             let
                 maze = model.maze
                 common = maze.common
-                newMaze = createMaze common.width common.height model.seed maze.extra
+                newMaze = createMaze common.width common.height model.seed model.algorithm
             in
             { model | maze = newMaze, runGenerator = False }
 
@@ -165,7 +169,7 @@ update msg model =
                         |> withDefault heightDefault
                         |> min maxSize
                         |> max minSize
-                newMaze = createMaze model.maze.common.width newHeight model.seed model.maze.extra
+                newMaze = createMaze model.maze.common.width newHeight model.seed model.algorithm
             in
             { model | maze = newMaze, runGenerator = False }
 
@@ -177,7 +181,7 @@ update msg model =
                         |> withDefault widthDefault
                         |> min maxSize
                         |> max minSize
-                newMaze = createMaze newWidth model.maze.common.height model.seed model.maze.extra
+                newMaze = createMaze newWidth model.maze.common.height model.seed model.algorithm
             in
             { model | maze = newMaze, runGenerator = False }
 
@@ -185,7 +189,7 @@ update msg model =
             let
                 newSeed = seedUpdate |> String.toInt |> withDefault 0
                 common = model.maze.common
-                newMaze = createMaze common.width common.height newSeed model.maze.extra
+                newMaze = createMaze common.width common.height newSeed model.algorithm
             in
             { model | maze = newMaze, seed = newSeed, runGenerator = False }
 
@@ -193,7 +197,7 @@ update msg model =
             let
                 newAlgorithm = stringToAlgorithm algorithmUpdate
                 common = model.maze.common
-                newMaze = createMaze common.width common.height model.seed model.maze.extra
+                newMaze = createMaze common.width common.height model.seed newAlgorithm
             in
             { model | maze = newMaze, algorithm = newAlgorithm, runGenerator = False }
 
@@ -244,8 +248,9 @@ viewInputs seed tickInterval width height =
         ]
         [ div []
             [ label [ Attrs.for "algorithm-input", style "padding-right" "10px" ] [ text "Algorithm" ]
-            , select [ Attrs.id "algorithm-input", onInput SeedUpdate ]
-                [ option [ Attrs.selected True, Attrs.value (algorithmToString Prim) ] [ text "Prims' Algorithm" ]
+            , select [ Attrs.id "algorithm-input", onInput AlgorithmUpdate ]
+                [ option [ Attrs.value (algorithmToString Prim) ] [ text "Prims' Algorithm" ]
+                , option [ Attrs.value (algorithmToString Kruskal) ] [ text "Kruskal's Algorithm" ]
                 ]
             ]
         , div []
@@ -356,7 +361,7 @@ cellColor index maze =
                 else
                     "gray"
 
-            --_ -> "gray"
+            _ -> "gray"
 
 
 borderStyle : Bool -> String
