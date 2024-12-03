@@ -44,7 +44,13 @@ headerFooterStyle =
 viewHeader : Html msg
 viewHeader =
     nav headerFooterStyle
-        [ h1 [] [text "Maze generator"]
+        [ a 
+            [ style "text-decoration" "none"
+            , style "color" "black"
+            , style "font-size" "x-large"
+            , href "/" 
+            ] [ h1 [] [text "Maze generator"] ]
+
         ]
 
 
@@ -52,12 +58,11 @@ viewHeader =
 viewFooter : Html msg
 viewFooter =
     footer headerFooterStyle
-        [ div [ class "container" ]
-            [ a [ class "logo-font", href "/" ] [ text "conduit" ]
-            , span [ class "attribution" ]
-                [ text "An interactive learning project from "
-                , a [ href "https://thinkster.io" ] [ text "Thinkster" ]
-                , text ". Code & design licensed under MIT."
+        [ div [ ]
+            [ span [ ]
+                [ text "A maze generator demo made by "
+                , a [ href "https://github.com/Ahydul/maze-generator-demo" ] [ text "Ahydul" ]
+                , text ". Code licensed under Apache License."
                 ]
             ]
         ]
