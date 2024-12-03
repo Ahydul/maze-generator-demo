@@ -137,11 +137,11 @@ view model =
     in
     case ( model.route, model.commonModel ) of
 
-        ( Route.Home, _ ) -> Page.view Page.Home { title = "Main", content = mainPage }
+        ( Route.Home, _ ) -> Page.view Page.Home { title = "A maze generator", content = mainPage }
 
         ( Route.Maze, UpdateMaze mazeModel ) -> viewPage Page.Maze MazeMsg (Maze.view mazeModel)
 
-        ( _, _ ) -> Page.view Page.Home { title = "Main", content = mainPage }
+        ( _, _ ) -> Page.view Page.Home { title = "A maze generator", content = mainPage }
 
 
 mainPage : Html msg

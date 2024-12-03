@@ -224,7 +224,7 @@ view model =
     let
         maze = model.maze
     in
-    { title = "URL Interceptor"
+    { title = "Maze Generator"
     , content =
         div
             [ style "display" "grid"
